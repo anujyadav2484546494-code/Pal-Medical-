@@ -80,6 +80,7 @@ function App() {
   const [adminLoginPwd, setAdminLoginPwd] = useState('');
   const [showAdminPwd, setShowAdminPwd] = useState(false);
   const [adminLoginError, setAdminLoginError] = useState('');
+  const [adminSetupError, setAdminSetupError] = useState('');
 
   // Admin Portal Staff Registration State (Only Admin can register staff!)
   const [issuedCredentials, setIssuedCredentials] = useState(null);
@@ -373,6 +374,68 @@ function App() {
     setAdminLoginPwd('');
     setAdminTab('staff-register');
     showToast(`Administrator portal unlocked. Welcome, ${found.name}.`, 'success');
+  };
+
+  const handleInitialAdminSetup = (e) => {
+    e.preventDefault();
+    setAdminSetupError('');
+
+    if (users.some(user => user.role === 'Admin')) {
+      setAdminSetupError('An administrator is already set up. Sign in with that account.');
+      return;
+    }
+
+    const form = new FormData(e.target);
+    const name = String(form.get('name') || '').trim();
+    const username = String(form.get('username') || '').trim().toLowerCase();
+    const password = String(form.get('password') || '');
+    const confirmPassword = String(form.get('confirmPassword') || '');
+
+    if (name.length < 2) {
+      setAdminSetupError('Enter the administrator name.');
+      return;
+    }
+
+    if (!/^[a-z0-9._-]{3,30}$/.test(username)) {
+      setAdminSetupError('Admin ID must be 3–30 characters using letters, numbers, dots, dashes, or underscores.');
+      return;
+    }
+
+    if (users.some(user => (user.username || '').toLowerCase() === username)) {
+      setAdminSetupError('That Admin ID is already in use. Choose another one.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setAdminSetupError('Choose a password with at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setAdminSetupError('The passwords do not match.');
+      return;
+    }
+
+    const newAdmin = {
+      id: `ADMIN-${Date.now()}`,
+      name,
+      username,
+      mobile: '',
+      password,
+      role: 'Admin',
+      qualification: '',
+      createdAt: new Date().toISOString().substring(0, 10),
+      status: 'Active',
+      issuedBy: 'Initial browser setup'
+    };
+
+    setUsers(previous => [...previous, newAdmin]);
+    setAdminUser(newAdmin);
+    setAdminTab('staff-register');
+    setAdminLoginId('');
+    setAdminLoginPwd('');
+    e.target.reset();
+    showToast(`Admin account created. Welcome, ${name}.`, 'success');
   };
 
   const handleAdminLogout = () => {
@@ -1640,6 +1703,51 @@ function App() {
         {activePortal === 'admin' && (
           <div className="space-y-6">
             {!adminUser ? (
+              !users.some(user => user.role === 'Admin') ? (
+                <div className="max-w-md mx-auto react-card p-6 sm:p-8 space-y-5 border-t-4 border-blue-600 shadow-2xl">
+                  <div className="text-center space-y-2">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-800 text-3xl flex items-center justify-center mx-auto shadow-inner">
+                      🛡️
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900">Set Up the First Admin</h3>
+                    <p className="text-xs text-slate-500">
+                      Create an Admin ID and password for this browser's demo account.
+                    </p>
+                  </div>
+
+                  {adminSetupError && (
+                    <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200">
+                      {adminSetupError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleInitialAdminSetup} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Administrator Name *</label>
+                      <input name="name" type="text" required minLength="2" autoComplete="name" className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Choose Admin ID *</label>
+                      <input name="username" type="text" required minLength="3" maxLength="30" autoComplete="username" placeholder="e.g. storeadmin" className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-500 font-medium" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Choose Password *</label>
+                      <input name="password" type="password" required minLength="8" autoComplete="new-password" className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-500 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password *</label>
+                      <input name="confirmPassword" type="password" required minLength="8" autoComplete="new-password" className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-500 font-mono" />
+                    </div>
+                    <button type="submit" className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition">
+                      Create Admin Account
+                    </button>
+                  </form>
+
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+                    Demo only: this account is saved in this browser. Do not use real store passwords or customer data here.
+                  </div>
+                </div>
+              ) : (
               /* Dedicated Admin Login Screen */
               <div className="max-w-md mx-auto react-card p-6 sm:p-8 space-y-5 border-t-4 border-emerald-600 shadow-2xl">
                 <div className="text-center space-y-2">
@@ -1701,9 +1809,10 @@ function App() {
                 </form>
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500">
-                  No default administrator account is included. Configure secure server-side authentication before using admin features.
+                  Enter the Admin ID and password created during first setup. Demo accounts are stored in this browser only.
                 </div>
               </div>
+              )
             ) : (
               /* Admin Authenticated Master Dashboard */
               <div className="space-y-6">
@@ -1716,7 +1825,10 @@ function App() {
                         <span>Admin Master Portal: {adminUser.name}</span>
                         <span className="bg-emerald-700 text-white px-2 py-0.5 rounded text-[10px] uppercase font-bold">Store Owner</span>
                       </div>
-                      <div className="text-xs text-emerald-300">Registered Pharmacist ({adminUser.qualification}) • Mobile: {adminUser.mobile}</div>
+                      <div className="text-xs text-emerald-300">
+                        {adminUser.qualification ? `Registered Pharmacist (${adminUser.qualification})` : 'Browser demo administrator'}
+                        {adminUser.mobile ? ` • Mobile: ${adminUser.mobile}` : ''}
+                      </div>
                     </div>
                   </div>
 
